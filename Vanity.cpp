@@ -1146,7 +1146,9 @@ void VanitySearch::Search(std::vector<int> gpuId, std::vector<int> gridSize) {
 		if (timeout60sec > 5.0) {
 
 			// Persist scan progress for crash-safe resume.
-			if (progressCallback && savedNumThreads > 0) {
+			// Single-GPU only: with >1 GPU, getGPUCount() sums all devices while
+			// savedNumThreads is one device's thread count, so the offset would be wrong.
+			if (progressCallback && savedNumThreads > 0 && numGPUs == 1) {
 				Int off = RangeMath::offsetFromCount(getGPUCount(), savedNumThreads);
 				progressCallback(off, savedNumThreads);
 			}
