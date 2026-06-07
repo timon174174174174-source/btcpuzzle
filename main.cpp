@@ -607,6 +607,15 @@ int main(int argc, char* argv[]) {
 			g_poolConfig.saveKeyToBtcPuzzle = argv[a];
 			a++;
 		}
+		else if (strcmp(argv[a], "-saveprogress") == 0) {
+			if (a + 1 >= argc || (argv[a + 1][0] == '-' && argv[a + 1][1] != '\0')) {
+				fprintf(stderr, "-saveprogress requires a value\n");
+				exit(-1);
+			}
+			a++;
+			g_poolConfig.saveProgress = (strcmp(argv[a], "true") == 0 || strcmp(argv[a], "1") == 0);
+			a++;
+		}
 		else if (strcmp(argv[a], "-pubkey") == 0) {
 			if (a + 1 >= argc) {
 				fprintf(stderr, "-pubkey requires a value\n");

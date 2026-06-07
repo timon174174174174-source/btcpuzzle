@@ -98,6 +98,12 @@ bool PoolClient::init() {
 	else {
 		logMessage(WARNING, "Save Key To Account  => Disabled");
 	}
+	if (config.saveProgress) {
+		logMessage(INFO, "Save Progress        => Enabled");
+	}
+	else {
+		logMessage(WARNING, "Save Progress        => Disabled");
+	}
 	std::cout << "========================================" << std::endl;
 
 	// Pool client init
