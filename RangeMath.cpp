@@ -3,6 +3,7 @@
 namespace RangeMath {
 
 Int perThreadDiff(Int& start, Int& end, int numThreads) {
+    if (numThreads <= 0) { Int z; z.SetInt32(0); return z; }
     Int diff(&end);
     if (diff.IsOdd()) diff.AddOne();
     diff.Sub(&start);
@@ -21,6 +22,7 @@ Int threadStart(Int& start, Int& diff, int idx) {
 }
 
 Int offsetFromCount(uint64_t totalCount, int numThreads) {
+    if (numThreads <= 0) { Int z; z.SetInt32(0); return z; }
     Int c(totalCount);   // Int(uint64_t)
     Int n; n.SetInt32((uint32_t)numThreads);
     c.Div(&n);

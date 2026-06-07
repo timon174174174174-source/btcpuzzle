@@ -39,6 +39,11 @@ int main() {
     CHECK(eq(RangeMath::offsetFromCount(0x40, 4), e10));
     CHECK(eq(RangeMath::offsetFromCount(0x41, 4), e10));
 
+    // guard: non-positive thread count returns zero (no division by zero)
+    Int zero; zero.SetInt32(0);
+    CHECK(eq(RangeMath::perThreadDiff(start, end, 0), zero));
+    CHECK(eq(RangeMath::offsetFromCount(0x40, 0), zero));
+
     if (failures == 0) { printf("ALL RANGEMATH TESTS PASSED\n"); return 0; }
     printf("%d CHECK(S) FAILED\n", failures);
     return 1;
