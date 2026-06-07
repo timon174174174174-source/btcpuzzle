@@ -1,0 +1,83 @@
+name: Build Windows (CUDA)
+
+# Builds VanitySearch.exe (with save/resume) on a GitHub-hosted Windows runner.
+# Installs CUDA toolkit + vcpkg deps, builds Release|x64 via MSBuild, and uploads
+# the .exe + runtime DLLs as a downloadable artifact. No local toolchain needed.
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - feature/save-resume-progress
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install CUDA Toolkit 12.6
+        uses: Jimver/cuda-toolkit@v0.2.21
+        id: cuda
+        with:
+          cuda: '12.6.0'
+          method: 'network'
+          sub-packages: '["nvcc", "cudart", "visual_studio_integration"]'
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Install vcpkg dependencies (curl, openssl, zlib)
+        shell: pwsh
+        run: |
+          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install curl:x64-windows openssl:x64-windows zlib:x64-windows
+          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" integrate install
+
+      - name: Patch project for RTX 50xx (sm_120) forward-compat PTX
+        shell: pwsh
+        run: |
+          # Embed compute_90 PTX so the driver JIT-compiles it for newer GPUs (sm_120).
+          (Get-Content VanitySearch.vcxproj -Raw) `
+            -replace 'compute_90,sm_90', 'compute_90,sm_90;compute_90,compute_90' `
+            | Set-Content VanitySearch.vcxproj -NoNewline
+
+      - name: Create local.props with BUILD_HASH
+        shell: pwsh
+        run: |
+          @'
+          <?xml version="1.0" encoding="utf-8"?>
+          <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+            <ItemDefinitionGroup>
+              <ClCompile>
+                <PreprocessorDefinitions>BUILD_HASH="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+              </ClCompile>
+            </ItemDefinitionGroup>
+          </Project>
+          '@ | Set-Content local.props
+
+      - name: Build (Release x64)
+        shell: pwsh
+        env:
+          # Tolerate a newer MSVC than the CUDA toolkit officially lists.
+          NVCC_PREPEND_FLAGS: '-allow-unsupported-compiler'
+        run: |
+          msbuild VanitySearch.vcxproj /p:Configuration=Release /p:Platform=x64 /m /v:minimal
+
+      - name: Collect artifact (exe + runtime DLLs + pool.conf)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force out | Out-Null
+          Copy-Item x64\Release\VanitySearch.exe out\
+          Copy-Item pool.conf out\
+          $bin = "$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\bin"
+          foreach ($d in 'libcrypto-3-x64.dll','libcurl.dll','zlib1.dll') {
+            if (Test-Path "$bin\$d") { Copy-Item "$bin\$d" out\ }
+          }
+          Get-ChildItem out\ | Format-Table Name,Length
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VanitySearch-windows-x64
+          path: out/**
