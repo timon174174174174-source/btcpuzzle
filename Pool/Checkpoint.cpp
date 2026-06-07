@@ -5,6 +5,16 @@
 
 static const char* CP_HEADER = "btcpuzzle-checkpoint v1";
 
+// Strict base-10 int parse: false if empty or contains non-numeric chars.
+static bool parseIntStrict(const std::string& s, int& out) {
+    if (s.empty()) return false;
+    char* end = nullptr;
+    long v = std::strtol(s.c_str(), &end, 10);
+    if (end == s.c_str() || *end != '\0') return false;
+    out = (int)v;
+    return true;
+}
+
 bool CheckpointIO::save(const std::string& path, const Checkpoint& cp) {
     const std::string tmp = path + ".tmp";
     {
@@ -19,6 +29,7 @@ bool CheckpointIO::save(const std::string& path, const Checkpoint& cp) {
         out << "numThreads=" << cp.numThreads << "\n";
         out << "offset=" << cp.offsetHex << "\n";
         for (const auto& a : cp.proofAddresses) out << "proof=" << a << "\n";
+        // addresses (Base58/Bech32) and hex keys contain no spaces -> single space is a safe separator
         for (const auto& p : cp.foundProof)     out << "found=" << p.first << " " << p.second << "\n";
         out.flush();
         if (!out.good()) { out.close(); std::remove(tmp.c_str()); return false; }
@@ -46,15 +57,17 @@ bool CheckpointIO::load(const std::string& path, Checkpoint& out) {
         if (eq == std::string::npos) continue;
         const std::string key = line.substr(0, eq);
         const std::string val = line.substr(eq + 1);
-        if (key == "puzzle")          { cp.puzzle = std::atoi(val.c_str()); havePuzzle = true; }
+        if (key == "puzzle")          { if (!parseIntStrict(val, cp.puzzle)) return false; havePuzzle = true; }
         else if (key == "hex")         cp.hex = val;
         else if (key == "rangeStart")  cp.rangeStart = val;
         else if (key == "rangeEnd")    cp.rangeEnd = val;
         else if (key == "target")      cp.targetAddress = val;
-        else if (key == "numThreads") { cp.numThreads = std::atoi(val.c_str()); haveNumThreads = true; }
+        else if (key == "numThreads") { if (!parseIntStrict(val, cp.numThreads)) return false; haveNumThreads = true; }
         else if (key == "offset")      cp.offsetHex = val;
         else if (key == "proof")       cp.proofAddresses.push_back(val);
         else if (key == "found") {
+            // separator invariant: address/hex key contain no spaces. A malformed
+            // line without a space is skipped (load still succeeds) -- resume re-finds it.
             size_t sp = val.find(' ');
             if (sp != std::string::npos)
                 cp.foundProof.emplace_back(val.substr(0, sp), val.substr(sp + 1));

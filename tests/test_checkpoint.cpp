@@ -55,6 +55,27 @@ int main() {
     CHECK(CheckpointIO::load(path, bad) == false);
     CheckpointIO::clear(path);
 
+    // malformed integer field -> load returns false
+    {
+        FILE* g = fopen(path.c_str(), "w");
+        fputs("btcpuzzle-checkpoint v1\npuzzle=71\nnumThreads=abc\n", g);
+        fclose(g);
+        Checkpoint badi;
+        CHECK(CheckpointIO::load(path, badi) == false);
+        CheckpointIO::clear(path);
+    }
+
+    // malformed found line (no space) is skipped, but load still succeeds
+    {
+        FILE* g = fopen(path.c_str(), "w");
+        fputs("btcpuzzle-checkpoint v1\npuzzle=71\nnumThreads=4\nfound=NoSpaceHere\n", g);
+        fclose(g);
+        Checkpoint okp;
+        CHECK(CheckpointIO::load(path, okp) == true);
+        CHECK(okp.foundProof.empty());
+        CheckpointIO::clear(path);
+    }
+
     if (failures == 0) { printf("ALL CHECKPOINT TESTS PASSED\n"); return 0; }
     printf("%d CHECK(S) FAILED\n", failures);
     return 1;
