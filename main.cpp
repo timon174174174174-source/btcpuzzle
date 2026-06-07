@@ -838,6 +838,9 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	// Reset the address list after any resume scan before entering the main loop.
+	address.clear();
+
 	int loops = 0;
 	while (true)
 	{
