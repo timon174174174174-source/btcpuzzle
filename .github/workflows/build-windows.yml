@@ -70,10 +70,13 @@ jobs:
           New-Item -ItemType Directory -Force out | Out-Null
           Copy-Item x64\Release\VanitySearch.exe out\
           Copy-Item pool.conf out\
+          # Copy every release DLL vcpkg produced (libcrypto, libcurl, zlib1, libssl, ...)
           $bin = "$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\bin"
-          foreach ($d in 'libcrypto-3-x64.dll','libcurl.dll','zlib1.dll') {
-            if (Test-Path "$bin\$d") { Copy-Item "$bin\$d" out\ }
-          }
+          Copy-Item "$bin\*.dll" out\
+          # Verify the exe's DLL dependencies are all present (uses dumpbin from the runner's MSVC)
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vc = & $vswhere -latest -products * -find '**\dumpbin.exe' | Select-Object -First 1
+          if ($vc) { & $vc /dependents out\VanitySearch.exe | Select-String -Pattern '\.dll' }
           Get-ChildItem out\ | Format-Table Name,Length
 
       - name: Upload artifact
