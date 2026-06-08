@@ -166,6 +166,7 @@ VanitySearch::VanitySearch(Secp256K1* secp, vector<std::string>& inputAddresses,
 
 	startKey.Set(&bc->ksNext);
 	resumeOffset.SetInt32(0);
+	appliedResumeOffset.SetInt32(0);
 	resumeExpectedThreads = 0;
 	savedNumThreads = 0;
 
@@ -975,6 +976,9 @@ void VanitySearch::FindKeyGPU(TH_PARAM* ph) {
 			fprintf(stdout, "[RESUME] resumed from per-thread offset 0x%s\n", effOffset.GetBase16().c_str());
 			fflush(stdout);
 		}
+		// Record the offset actually applied (0 on full re-scan fallback) so the
+		// monitor thread can report an ABSOLUTE checkpoint offset during resume.
+		appliedResumeOffset.Set(&effOffset);
 	}
 
 	// copy to gpu
@@ -1150,6 +1154,7 @@ void VanitySearch::Search(std::vector<int> gpuId, std::vector<int> gridSize) {
 			// savedNumThreads is one device's thread count, so the offset would be wrong.
 			if (progressCallback && savedNumThreads > 0 && numGPUs == 1) {
 				Int off = RangeMath::offsetFromCount(getGPUCount(), savedNumThreads);
+				off.Add(&appliedResumeOffset);  // absolute offset (resume base + this run's advance)
 				progressCallback(off, savedNumThreads);
 			}
 

@@ -799,6 +799,24 @@ int main(int argc, char* argv[]) {
 					if (!cp.offsetHex.empty()) rOff.SetBase16((char*)cp.offsetHex.c_str());
 					rv->setResume(rOff, cp.numThreads);
 
+					// Keep checkpointing DURING the resume scan too, so a crash mid-resume
+					// doesn't restart the whole remainder. off is already absolute.
+					if (g_poolConfig.saveProgress) {
+						rv->setProgressCallback([&](Int& off, int n) {
+							Checkpoint cp2;
+							cp2.puzzle = g_poolConfig.targetPuzzle;
+							cp2.hex = rdata.hex;
+							cp2.rangeStart = rdata.rangeStart;
+							cp2.rangeEnd = rdata.rangeEnd;
+							cp2.targetAddress = rdata.targetAddress;
+							cp2.proofAddresses = rdata.proofOfWorkAddresses;
+							cp2.numThreads = n;
+							cp2.offsetHex = off.GetBase16();
+							cp2.foundProof = rclient.getFoundProofPairs(rdata);
+							CheckpointIO::save(cpPath, cp2);
+						});
+					}
+
 					rv->Search(gpuId, gridSize);
 					rclient.stopPing();
 

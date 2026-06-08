@@ -145,6 +145,7 @@ private:
 	KeyFoundCallback keyCallback;
 	ProgressCallback progressCallback;
 	Int resumeOffset;
+	Int appliedResumeOffset;
 	int resumeExpectedThreads;
 	int savedNumThreads;
 	int searchType;
