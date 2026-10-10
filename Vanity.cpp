@@ -436,6 +436,9 @@ string VanitySearch::GetExpectedTimeBitCrack(double keyRate, double keyCount, BI
 
 	Int Range;
 	Range.Sub(&bc->ksFinish, &bc->ksNext);
+	// On resume, the part before the saved offset is already scanned.
+	Int resumedKeys = RangeMath::countFromOffset(appliedResumeOffset, savedNumThreads);
+	if (Range.IsGreaterOrEqual(&resumedKeys)) Range.Sub(&resumedKeys);
 	Int countKey;
 	countKey.SetInt32(0);
 	countKey.Add((uint64_t)keyCount);

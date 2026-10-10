@@ -29,4 +29,12 @@ Int offsetFromCount(uint64_t totalCount, int numThreads) {
     return c;
 }
 
+Int countFromOffset(Int& offset, int numThreads) {
+    if (numThreads <= 0) { Int z; z.SetInt32(0); return z; }
+    Int c(&offset);
+    Int n; n.SetInt32((uint32_t)numThreads);
+    c.Mult(&n);          // c = offset * numThreads
+    return c;
+}
+
 } // namespace RangeMath

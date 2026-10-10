@@ -12,6 +12,8 @@ namespace RangeMath {
     Int threadStart(Int& start, Int& diff, int idx);
     // Per-thread scan advance derived from total device key count: count / numThreads.
     Int offsetFromCount(uint64_t totalCount, int numThreads);
+    // Keys already scanned before a resume: offset * numThreads (inverse of offsetFromCount).
+    Int countFromOffset(Int& offset, int numThreads);
 }
 
 #endif // RANGEMATH_H

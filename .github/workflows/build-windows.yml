@@ -11,17 +11,31 @@ on:
       - feature/save-resume-progress
 
 jobs:
+  unit-tests:
+    # No-GPU unit tests (checkpoint I/O, range/resume arithmetic).
+    runs-on: ubuntu-latest
+    container: gcc:9
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Checkpoint tests
+        run: g++ -O2 -std=c++17 -IPool tests/test_checkpoint.cpp Pool/Checkpoint.cpp -o /tmp/tc && /tmp/tc
+
+      - name: RangeMath tests
+        run: g++ -O2 -std=c++17 -mssse3 -Wno-write-strings -I. tests/test_rangemath.cpp RangeMath.cpp Int.cpp IntMod.cpp IntGroup.cpp Random.cpp Timer.cpp -lpthread -o /tmp/trm && /tmp/trm
+
   build:
     runs-on: windows-2022
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install CUDA Toolkit 12.6
+      - name: Install CUDA Toolkit 12.8
         uses: Jimver/cuda-toolkit@v0.2.21
         id: cuda
         with:
-          cuda: '12.6.0'
+          cuda: '12.8.0'
           method: 'network'
           sub-packages: '["nvcc", "cudart", "visual_studio_integration"]'
 
@@ -33,14 +47,6 @@ jobs:
         run: |
           & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install curl:x64-windows openssl:x64-windows zlib:x64-windows
           & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" integrate install
-
-      - name: Patch project for RTX 50xx (sm_120) forward-compat PTX
-        shell: pwsh
-        run: |
-          # Embed compute_90 PTX so the driver JIT-compiles it for newer GPUs (sm_120).
-          (Get-Content VanitySearch.vcxproj -Raw) `
-            -replace 'compute_90,sm_90', 'compute_90,sm_90;compute_90,compute_90' `
-            | Set-Content VanitySearch.vcxproj -NoNewline
 
       - name: Create local.props with BUILD_HASH
         shell: pwsh

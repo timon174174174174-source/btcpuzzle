@@ -280,8 +280,8 @@ int _ConvertSMVer2Cores(int major, int minor) {
 		{0x86,  128},
 		{0x89,  128},
 		{0x90,  114},
-		{0x100, 128},
-		{0x120, 128},
+		{0xA0,  128},  // sm_100 (key is (major << 4) + minor)
+		{0xC0,  128},  // sm_120 (RTX 50xx)
 		{-1, -1} };
 
 	int index = 0;

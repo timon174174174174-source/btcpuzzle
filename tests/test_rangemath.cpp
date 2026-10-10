@@ -39,10 +39,19 @@ int main() {
     CHECK(eq(RangeMath::offsetFromCount(0x40, 4), e10));
     CHECK(eq(RangeMath::offsetFromCount(0x41, 4), e10));
 
+    // countFromOffset: inverse of offsetFromCount -> 0x10 per thread * 4 = 0x40 keys
+    Int e40; e40.SetBase16((char*)"40");
+    CHECK(eq(RangeMath::countFromOffset(e10, 4), e40));
+    // real resume: offset 0x158E400 * 2^20 threads = 0x158E40000000 keys (>32 bit)
+    Int rOff; rOff.SetBase16((char*)"158E400");
+    Int rExp; rExp.SetBase16((char*)"158E40000000");
+    CHECK(eq(RangeMath::countFromOffset(rOff, 1048576), rExp));
+
     // guard: non-positive thread count returns zero (no division by zero)
     Int zero; zero.SetInt32(0);
     CHECK(eq(RangeMath::perThreadDiff(start, end, 0), zero));
     CHECK(eq(RangeMath::offsetFromCount(0x40, 0), zero));
+    CHECK(eq(RangeMath::countFromOffset(e10, 0), zero));
 
     if (failures == 0) { printf("ALL RANGEMATH TESTS PASSED\n"); return 0; }
     printf("%d CHECK(S) FAILED\n", failures);

@@ -23,7 +23,8 @@ GENCODE = \
 -gencode arch=compute_89,code=sm_89 \
 -gencode arch=compute_90,code=sm_90 \
 -gencode arch=compute_100,code=sm_100 \
--gencode arch=compute_100,code=compute_100
+-gencode arch=compute_120,code=sm_120 \
+-gencode arch=compute_120,code=compute_120
 
 ifdef gpu
 
