@@ -31,11 +31,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install CUDA Toolkit 12.8
-        uses: Jimver/cuda-toolkit@v0.2.21
+      - name: Install CUDA Toolkit 12.9
+        uses: Jimver/cuda-toolkit@v0.2.26
         id: cuda
         with:
-          cuda: '12.8.0'
+          cuda: '12.9.1'
           method: 'network'
           sub-packages: '["nvcc", "cudart", "visual_studio_integration"]'
 
