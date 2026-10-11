@@ -38,6 +38,7 @@ jobs:
           cuda: '12.9.1'
           method: 'network'
           sub-packages: '["nvcc", "cudart", "visual_studio_integration"]'
+          use-github-cache: false
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
