@@ -1,0 +1,94 @@
+name: Build variants (RTX 50xx speed test)
+
+# Builds several VanitySearch.exe variants that differ only in CUDA version and
+# GPU code generation, to compare scan speed on an RTX 50xx (sm_120) card.
+# Artifacts contain only the exe (keep your own DLLs and pool.conf).
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - exp/variants
+
+jobs:
+  build:
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: cuda12.9-ptx90
+            cuda: '12.9.1'
+            codegen: 'compute_90,compute_90'
+          - name: cuda12.9-ptx120
+            cuda: '12.9.1'
+            codegen: 'compute_120,compute_120'
+          - name: cuda13.0-ptx120
+            cuda: '13.0.2'
+            codegen: 'compute_120,compute_120'
+          - name: cuda13.0-sm120
+            cuda: '13.0.2'
+            codegen: 'compute_120,sm_120'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install CUDA Toolkit ${{ matrix.cuda }}
+        uses: Jimver/cuda-toolkit@v0.2.36
+        with:
+          cuda: ${{ matrix.cuda }}
+          method: 'network'
+          sub-packages: '["nvcc", "cudart", "visual_studio_integration"]'
+          use-github-cache: false
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Install vcpkg dependencies (curl, openssl, zlib)
+        shell: pwsh
+        run: |
+          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install curl:x64-windows openssl:x64-windows zlib:x64-windows
+          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" integrate install
+
+      - name: Patch project (CUDA version + code generation)
+        shell: pwsh
+        run: |
+          $ver = '${{ matrix.cuda }}' -replace '^(\d+\.\d+).*', '$1'
+          (Get-Content VanitySearch.vcxproj -Raw) `
+            -replace 'CUDA \d+\.\d+\.(props|targets)', "CUDA $ver.`$1" `
+            -replace '<CodeGeneration([^>]*)>[^<]*</CodeGeneration>', '<CodeGeneration$1>${{ matrix.codegen }}</CodeGeneration>' `
+            | Set-Content VanitySearch.vcxproj -NoNewline
+          # CUDA 13 removed cudaDeviceProp::computeMode (only used for an info printout).
+          if ($ver -like '13.*') {
+            (Get-Content GPU\GPUEngine.cu -Raw) `
+              -replace 'sComputeMode\[deviceProp\.computeMode\]', 'sComputeMode[4]' `
+              | Set-Content GPU\GPUEngine.cu -NoNewline
+          }
+          Select-String -Path VanitySearch.vcxproj -Pattern 'CodeGeneration|BuildCustomizations'
+
+      - name: Create local.props with BUILD_HASH
+        shell: pwsh
+        run: |
+          @'
+          <?xml version="1.0" encoding="utf-8"?>
+          <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+            <ItemDefinitionGroup>
+              <ClCompile>
+                <PreprocessorDefinitions>BUILD_HASH="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+              </ClCompile>
+            </ItemDefinitionGroup>
+          </Project>
+          '@ | Set-Content local.props
+
+      - name: Build (Release x64)
+        shell: pwsh
+        env:
+          NVCC_PREPEND_FLAGS: '-allow-unsupported-compiler'
+        run: |
+          msbuild VanitySearch.vcxproj /p:Configuration=Release /p:Platform=x64 /m /v:minimal
+
+      - name: Upload exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: VanitySearch-${{ matrix.name }}
+          path: x64/Release/VanitySearch.exe
